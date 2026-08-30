@@ -1,0 +1,28 @@
+services:
+  inker:
+    build: .
+    image: ${INKER_IMAGE:-inker:latest}
+    container_name: inker
+    restart: unless-stopped
+    ports:
+      - "${INKER_PORT:-80}:80"
+    volumes:
+      - uploads_data:/app/uploads
+    environment:
+      TZ: ${TZ:-UTC}
+      ADMIN_PIN: "${ADMIN_PIN:-1111}"
+      INKER_PORT: "${INKER_PORT:-80}"
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-UTC}
+      # Inker stores all data in a single SQLite file under the uploads volume
+      # (/app/uploads/inker.db). No external database is required.
+    healthcheck:
+      test: ["CMD", "bun", "-e", "const r=await fetch('http://127.0.0.1/health');process.exit(r.ok?0:1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  # All application data, including the SQLite database (inker.db).
+  uploads_data:
+    driver: local

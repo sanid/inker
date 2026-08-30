@@ -1,0 +1,40 @@
+#!/command/with-contenv sh
+exec 2>&1
+
+SQLITE_FILE=/app/uploads/inker.db
+
+# Create required directories and set ownership for the non-root backend user
+mkdir -p /app/uploads/screens /app/uploads/firmware /app/uploads/widgets /app/uploads/captures /app/uploads/drawings /app/logs /tmp/inker-home
+chown -R inker:inker /app/uploads /app/logs /tmp/inker-home
+
+# Set HOME for the inker user (Puppeteer needs a writable home for config)
+export HOME=/tmp/inker-home
+
+cd /app
+
+# Inker stores everything in a single SQLite file on the uploads volume.
+export DATABASE_URL="file:${SQLITE_FILE}"
+
+# Track whether this is a brand-new install (no database file yet) purely for logging.
+FRESH_INSTALL=0
+[ ! -f "$SQLITE_FILE" ] && FRESH_INSTALL=1
+
+echo "[backend] Applying SQLite schema (idempotent)..."
+s6-setuidgid inker node ./node_modules/prisma/build/index.js db push --skip-generate 2>&1 || echo "[backend] Warning: db push had issues, check logs"
+
+# Seed default reference data (device models + widget templates) on EVERY boot. The seed
+# is fully idempotent: it upserts each row with `update: {}`, so it only ADDS what is
+# missing and never modifies or deletes existing data (users, devices, screens, or any
+# customized rows are untouched). Running it on upgrades — not just fresh installs — means
+# an existing instance automatically picks up newly shipped models and widget templates
+# (e.g. the calendar widget, the trmnl_x model) simply by pulling the new image.
+if [ "$FRESH_INSTALL" = "1" ]; then
+    echo "[backend] Fresh install — seeding default data..."
+else
+    echo "[backend] Syncing default data (idempotent, adds any new models/widgets)..."
+fi
+s6-setuidgid inker bun run prisma/seed.ts 2>&1 || echo "[backend] Warning: seed reported an issue, check logs"
+
+# Start backend as the non-root user
+echo "[backend] Starting Inker backend..."
+exec s6-setuidgid inker bun run dist/main.js
