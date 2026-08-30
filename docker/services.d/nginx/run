@@ -1,4 +1,7 @@
 #!/command/with-contenv sh
+# Clean up any leftover default nginx sites or files
+rm -rf /etc/nginx/sites-enabled/* /var/www/html/* 2>/dev/null || true
+
 # Wait for backend to be ready before accepting connections
 # Prevents 502 errors when devices connect during startup
 echo "[nginx] Waiting for backend..."

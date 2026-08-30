@@ -195,7 +195,7 @@ COPY frontend/public/fonts /usr/share/nginx/html/fonts
 
 # Copy nginx config
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-RUN rm -f /etc/nginx/sites-enabled/default
+RUN rm -rf /etc/nginx/sites-enabled/* /etc/nginx/sites-available/* /var/www/html/*
 
 # Copy s6-overlay service definitions
 COPY docker/cont-init.d/ /etc/cont-init.d/
