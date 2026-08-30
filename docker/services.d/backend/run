@@ -14,6 +14,8 @@ cd /app
 
 # Inker stores everything in a single SQLite file on the uploads volume.
 export DATABASE_URL="file:${SQLITE_FILE}"
+# Force backend internal port to 3002 regardless of external PORT variable
+export PORT=3002
 
 # Track whether this is a brand-new install (no database file yet) purely for logging.
 FRESH_INSTALL=0
